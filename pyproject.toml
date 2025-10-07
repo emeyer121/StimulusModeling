@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stim-transformations"
+version = "1.0.0"
+description = "A library for stimulus image transformations including centering, scaling, texture synthesis, skeletonization, and neural network feature extraction"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "opencv-python>=4.5.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.4.0",
+    "scikit-image>=0.18.0",
+    "torch>=1.9.0",
+    "torchvision>=0.10.0",
+    "plenoptic>=0.7.0",
+]
+
+
+[project.urls]
+Repository = "https://https://github.com/arcaro-lab/labcode/tree/main/StimulusModeling"
+Documentation = "https://https://github.com/arcaro-lab/labcode/blob/main/StimulusModeling/README.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["stim_transformations*"]
+

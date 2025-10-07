@@ -1,0 +1,15 @@
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.0
+scipy>=1.7.0
+matplotlib>=3.4.0
+scikit-image>=0.18.0
+
+# Deep learning and texture synthesis
+torch>=1.9.0
+torchvision>=0.10.0
+plenoptic>=0.7.0
+
+# Optional GPU support (install separately if needed)
+# torch>=1.9.0+cu111  # For CUDA 11.1
+# torchvision>=0.10.0+cu111  # For CUDA 11.1
