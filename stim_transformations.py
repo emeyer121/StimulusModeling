@@ -23,7 +23,7 @@ import torch
 from skimage.morphology import skeletonize, remove_small_holes
 from torchvision import models
 
-def setup(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]:
+def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]:
     """
     Main entry point for image operations.
     

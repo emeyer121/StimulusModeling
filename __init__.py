@@ -18,7 +18,7 @@ __version__ = "1.0.0"
 
 # Import main functions for easy access
 from .stim_transformations import (
-    setup,
+    transform_image,
     center_image,
     scale_image,
     texture_inplace,
@@ -29,7 +29,7 @@ from .stim_transformations import (
 
 # Define what gets imported with "from stim_transformations import *"
 __all__ = [
-    "setup",
+    "transform_image",
     "center_image", 
     "scale_image",
     "texture_inplace",
