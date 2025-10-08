@@ -390,7 +390,7 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
 
     im_init = torch.rand_like(img_crop) * 0.2 + img_crop.mean()
     met = po.synth.MetamerCTF(img_crop, ps, loss_function=po.tools.optim.l2_norm)
-    met.setup(im_init)
+    # met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
                ctf_iters_to_check=3)
@@ -516,7 +516,7 @@ def texture_crop(img_test: np.ndarray, n_scales: int = 2, target_size: int = 256
 
     im_init = torch.rand_like(img_prep) * 0.2 + img_prep.mean()
     met = po.synth.MetamerCTF(img_prep, ps, loss_function=po.tools.optim.l2_norm, coarse_to_fine='together')
-    met.setup(im_init)
+    # met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
                ctf_iters_to_check=3)
