@@ -81,7 +81,7 @@ scaled_img = stim_transformations.transform_image(img_test, operation = 'scale',
 This function works by using the Freeman & Simoncelli texture synthesis model using [plenoptic](https://github.com/plenoptic-org/plenoptic/tree/main). This usage crops out the object from its background with a bounding box, synthesizes a metamer from the cropped image, then places it in a background of the same image size where the background is the average pixel value from the metamer. This keep the texture more contained rather than spreading it across the empty background and maintains position and shape information.
 
 ```
-texture_img = stf.transform_image(img_test, operation = 'texture', n_scales=2, max_iter=1500, device='auto')
+texture_img = stf.transform_image(img_test, operation = 'texture_inplace', n_scales=2, max_iter=1500, device='auto')
 ```
 <img src="images/textureinplace_camel.png" height="256">
 <img src="images/textureinplace_wrench.png" height="256">
