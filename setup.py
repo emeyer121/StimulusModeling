@@ -22,7 +22,7 @@ setup(
     description="A library for stimulus image transformations including centering, scaling, texture synthesis, skeletonization, and neural network feature extraction",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    packages=find_packages(),
+    py_modules=["stim_transformations"],
     python_requires=">=3.8",
     install_requires=read_requirements(),
 )

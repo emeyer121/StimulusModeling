@@ -24,7 +24,6 @@ dependencies = [
 Repository = "https://https://github.com/arcaro-lab/labcode/tree/main/StimulusModeling"
 Documentation = "https://https://github.com/arcaro-lab/labcode/blob/main/StimulusModeling/README.md"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["stim_transformations*"]
+[tool.setuptools]
+py-modules = ["stim_transformations"]
 
