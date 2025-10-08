@@ -4,6 +4,7 @@ A comprehensive Python library for stimulus image transformations including cent
 
 ## Installation
 
+### Option 1: Quick Install (Recommended)
 1. **Clone or download** the repository to your local machine
 2. **Navigate** to the StimulusModeling directory:
    ```bash
@@ -13,6 +14,34 @@ A comprehensive Python library for stimulus image transformations including cent
    ```bash
    pip install -e .
    ```
+
+### Option 2: Clean Install (If you encounter OpenMP conflicts)
+If you get OpenMP library conflicts (common on Windows), try this clean installation:
+
+```bash
+# Create a new conda environment (recommended)
+conda create -n stim_transformations python=3.9
+
+# Install core dependencies via conda
+conda install numpy scipy matplotlib opencv -c conda-forge
+
+# Install PyTorch via conda
+conda install pytorch torchvision -c pytorch
+
+# Install remaining dependencies
+pip install plenoptic scikit-image
+
+# Install the package
+pip install -e .
+```
+
+### Troubleshooting OpenMP Conflicts
+If you encounter the error `OMP: Error #15: Initializing libiomp5md.dll`, add this to the top of your Python script or notebook:
+
+```python
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+```
 
 ### Dependencies
 The package requires:
