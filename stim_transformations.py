@@ -134,6 +134,9 @@ def setup(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, T
 def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> np.ndarray:
     
     backgroundTest = stats.mode(img_test.flatten())[0]
+    # Ensure backgroundTest is a scalar
+    if hasattr(backgroundTest, 'item'):
+        backgroundTest = backgroundTest.item()
     binary = img_test != backgroundTest
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
 
@@ -153,6 +156,9 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
         cX_new, cY_new = w // 2, h // 2  # Center of the image
     else:
         backgroundVal = stats.mode(img_ref.flatten())[0]
+        # Ensure backgroundVal is a scalar
+        if hasattr(backgroundVal, 'item'):
+            backgroundVal = backgroundVal.item()
         _, binary = cv2.threshold(img_ref, backgroundVal, 255, cv2.THRESH_BINARY)
 
         # Calculate moments
@@ -178,6 +184,9 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
 def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     backgroundVal = stats.mode(img_ref.flatten())[0]
+    # Ensure backgroundVal is a scalar
+    if hasattr(backgroundVal, 'item'):
+        backgroundVal = backgroundVal.item()
     binary = img_ref != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
 
@@ -188,6 +197,9 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     # Calculate bounding box of the foreground in the test image
     backgroundVal = stats.mode(img_test.flatten())[0]
+    # Ensure backgroundVal is a scalar
+    if hasattr(backgroundVal, 'item'):
+        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
     _, _, w_test, h_test = cv2.boundingRect(binary)
@@ -207,6 +219,9 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     # Find the bounding box of the foreground in the scaled test image
     backgroundVal_scaled = stats.mode(img_test_scaled.flatten())[0]
+    # Ensure backgroundVal_scaled is a scalar
+    if hasattr(backgroundVal_scaled, 'item'):
+        backgroundVal_scaled = backgroundVal_scaled.item()
     binary_scaled = img_test_scaled != backgroundVal_scaled
     binary_scaled = binary_scaled.astype(np.uint8) * 255
     x, y, w, h = cv2.boundingRect(binary_scaled)
@@ -310,6 +325,9 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
 
     # Compute bounding box of the foreground in the reference image and crop it
     backgroundVal = stats.mode(img_test.flatten())[0]
+    # Ensure backgroundVal is a scalar
+    if hasattr(backgroundVal, 'item'):
+        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
     x, y, w, h = cv2.boundingRect(binary)
@@ -530,6 +548,9 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
 
     # Threshold the image to create a binary image and fill small holes
     backgroundVal = stats.mode(img_test.flatten())[0]
+    # Ensure backgroundVal is a scalar
+    if hasattr(backgroundVal, 'item'):
+        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     filled_mask = remove_small_holes(binary, area_threshold=area_threshold)
 
