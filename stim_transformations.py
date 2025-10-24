@@ -628,7 +628,7 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net = models.resnet18(pretrained=True)
     elif network == 'alexnet_mouse':
         name = "alexnet_bn_ir_64x64_input_pool_6"
-        net = load_pretrained_model(name)
+        net, _ = load_pretrained_model(name)
     else:
         raise ValueError(f"Unsupported network: {network}")
 
