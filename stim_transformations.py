@@ -20,8 +20,11 @@ from scipy import stats, ndimage
 import matplotlib.pyplot as plt
 import plenoptic as po
 import torch
+import os
 from skimage.morphology import skeletonize, remove_small_holes
 from torchvision import models
+from mouse_vision.mouse_vision.core.model_loader_utils import load_model
+from mouse_vision.mouse_vision.models.model_paths import MODEL_PATHS
 
 def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]:
     """
@@ -598,6 +601,20 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         layer = dict(net.named_modules())[layer_name]
         layer.register_forward_hook(hook)
 
+    def load_pretrained_model(model_name):
+        model_path = MODEL_PATHS[model_name]
+        assert os.path.isfile(model_path)
+
+        model, layers = load_model(
+            model_name, 
+            trained=True, 
+            model_path=model_path, 
+            model_family="imagenet",
+            state_dict_key="model_state_dict",  # make sure `model_state_dict` is in the *.pt file
+        )
+        
+        return model, layers
+
     # Load the specified network
     if network == 'alexnet':
         net = models.alexnet(pretrained=True)
@@ -609,6 +626,9 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net = models.vgg11(pretrained=True)
     elif network == 'resnet18':
         net = models.resnet18(pretrained=True)
+    elif network == 'alexnet_mouse':
+        name = "alexnet_bn_ir_64x64_input_pool_6"
+        net = load_pretrained_model(name)
     else:
         raise ValueError(f"Unsupported network: {network}")
 
