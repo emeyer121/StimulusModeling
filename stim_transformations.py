@@ -556,9 +556,10 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
         backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     filled_mask = remove_small_holes(binary, area_threshold=area_threshold)
+    closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_CLOSE, kernel=np.ones((3,3),np.uint8))
 
     # Skeletonize the binary image
-    skeleton = skeletonize(filled_mask)
+    skeleton = skeletonize(closed_img)
 
     # Convert skeleton back to uint8 for display
     skeleton = (skeleton * 255).astype(np.uint8)
@@ -570,7 +571,7 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
     if invert:
         skeleton = cv2.bitwise_not(skeleton)
 
-    return filled_mask * 255, skeleton
+    return closed_img * 255, skeleton
 
 def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: Optional[List[str]] = None, device: str = 'auto') -> List[np.ndarray]:
 
