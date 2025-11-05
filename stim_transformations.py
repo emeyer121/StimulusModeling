@@ -631,7 +631,6 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         if layer_type in layer_types:
             layer_names.append(f'{layer_type}: {name}')
             layers.append(name)  
-    print(f'Layers = {layers}')
 
     DNN_input = torch.tensor(img_test, dtype=torch.float32).to(DEVICE)  # Ensure DNN_input is of type Float
     if len(DNN_input.shape) == 2:  # If grayscale, add channel dimension and triple to 3 channels
