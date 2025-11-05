@@ -599,14 +599,19 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
     # Load the specified network
     if network == 'alexnet':
         net = models.alexnet(pretrained=True)
+        net.eval()
     elif network == 'vgg16':
         net = models.vgg16(pretrained=True)
+        net.eval()
     elif network == 'resnet50':
         net = models.resnet50(pretrained=True)
+        net.eval()
     elif network == 'vgg11':
         net = models.vgg11(pretrained=True)
+        net.eval()
     elif network == 'resnet18':
         net = models.resnet18(pretrained=True)
+        net.eval()
     elif network == 'alexnet_mouse':
         name = "alexnet_bn_ir_64x64_input_pool_6"
         # load_pretrained_model returns (model, layers) to match the project's
