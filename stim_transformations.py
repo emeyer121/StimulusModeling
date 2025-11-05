@@ -23,8 +23,8 @@ import torch
 import os
 from skimage.morphology import skeletonize, remove_small_holes
 from torchvision import models
-from mouse_vision.mouse_vision.core.model_loader_utils import load_model
-from mouse_vision.mouse_vision.models.model_paths import MODEL_PATHS
+from mouse_vision.core.model_loader_utils import load_model
+from mouse_vision.models.model_paths import MODEL_PATHS
 
 def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]:
     """
@@ -137,9 +137,6 @@ def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.
 def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> np.ndarray:
     
     backgroundTest = stats.mode(img_test.flatten())[0]
-    # Ensure backgroundTest is a scalar
-    if hasattr(backgroundTest, 'item'):
-        backgroundTest = backgroundTest.item()
     binary = img_test != backgroundTest
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
 
@@ -159,9 +156,6 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
         cX_new, cY_new = w // 2, h // 2  # Center of the image
     else:
         backgroundVal = stats.mode(img_ref.flatten())[0]
-        # Ensure backgroundVal is a scalar
-        if hasattr(backgroundVal, 'item'):
-            backgroundVal = backgroundVal.item()
         _, binary = cv2.threshold(img_ref, backgroundVal, 255, cv2.THRESH_BINARY)
 
         # Calculate moments
@@ -187,9 +181,6 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
 def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     backgroundVal = stats.mode(img_ref.flatten())[0]
-    # Ensure backgroundVal is a scalar
-    if hasattr(backgroundVal, 'item'):
-        backgroundVal = backgroundVal.item()
     binary = img_ref != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
 
@@ -200,9 +191,6 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     # Calculate bounding box of the foreground in the test image
     backgroundVal = stats.mode(img_test.flatten())[0]
-    # Ensure backgroundVal is a scalar
-    if hasattr(backgroundVal, 'item'):
-        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
     _, _, w_test, h_test = cv2.boundingRect(binary)
@@ -222,9 +210,6 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     # Find the bounding box of the foreground in the scaled test image
     backgroundVal_scaled = stats.mode(img_test_scaled.flatten())[0]
-    # Ensure backgroundVal_scaled is a scalar
-    if hasattr(backgroundVal_scaled, 'item'):
-        backgroundVal_scaled = backgroundVal_scaled.item()
     binary_scaled = img_test_scaled != backgroundVal_scaled
     binary_scaled = binary_scaled.astype(np.uint8) * 255
     x, y, w, h = cv2.boundingRect(binary_scaled)
@@ -328,9 +313,6 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
 
     # Compute bounding box of the foreground in the reference image and crop it
     backgroundVal = stats.mode(img_test.flatten())[0]
-    # Ensure backgroundVal is a scalar
-    if hasattr(backgroundVal, 'item'):
-        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
     x, y, w, h = cv2.boundingRect(binary)
@@ -393,7 +375,7 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
 
     im_init = torch.rand_like(img_crop) * 0.2 + img_crop.mean()
     met = po.synth.MetamerCTF(img_crop, ps, loss_function=po.tools.optim.l2_norm)
-    # met.setup(im_init)
+    met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
                ctf_iters_to_check=3)
@@ -519,7 +501,7 @@ def texture_crop(img_test: np.ndarray, n_scales: int = 2, target_size: int = 256
 
     im_init = torch.rand_like(img_prep) * 0.2 + img_prep.mean()
     met = po.synth.MetamerCTF(img_prep, ps, loss_function=po.tools.optim.l2_norm, coarse_to_fine='together')
-    # met.setup(im_init)
+    met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
                ctf_iters_to_check=3)
@@ -551,12 +533,10 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
 
     # Threshold the image to create a binary image and fill small holes
     backgroundVal = stats.mode(img_test.flatten())[0]
-    # Ensure backgroundVal is a scalar
-    if hasattr(backgroundVal, 'item'):
-        backgroundVal = backgroundVal.item()
     binary = img_test != backgroundVal
     filled_mask = remove_small_holes(binary, area_threshold=area_threshold)
-    closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_CLOSE, kernel=np.ones((3,3),np.uint8))
+
+    closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_OPEN, kernel=np.ones((3,3),np.uint8))
 
     # Skeletonize the binary image
     skeleton = skeletonize(closed_img)
@@ -592,7 +572,7 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
     """
 
     if layer_types is None:
-        layer_types = ['Conv2d', 'Linear']
+        layer_types = ['Conv2d', 'BatchNorm2d','ReLU','MaxPool2d','Dropout','BatchNorm1d','Linear']
 
     activations = {}
 
@@ -613,7 +593,7 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
             model_family="imagenet",
             state_dict_key="model_state_dict",  # make sure `model_state_dict` is in the *.pt file
         )
-        
+
         return model, layers
 
     # Load the specified network
@@ -629,6 +609,9 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net = models.resnet18(pretrained=True)
     elif network == 'alexnet_mouse':
         name = "alexnet_bn_ir_64x64_input_pool_6"
+        # load_pretrained_model returns (model, layers) to match the project's
+        # internal loader convention. Unpack so `net` is the model itself —
+        # this keeps behavior consistent with the torchvision models above.
         net, _ = load_pretrained_model(name)
     else:
         raise ValueError(f"Unsupported network: {network}")
@@ -648,6 +631,7 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         if layer_type in layer_types:
             layer_names.append(f'{layer_type}: {name}')
             layers.append(name)  
+    print(f'Layers = {layers}')
 
     DNN_input = torch.tensor(img_test, dtype=torch.float32).to(DEVICE)  # Ensure DNN_input is of type Float
     if len(DNN_input.shape) == 2:  # If grayscale, add channel dimension and triple to 3 channels
@@ -664,4 +648,4 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net(DNN_input)  # Forward pass to trigger hooks
         features.append(activations[layer_name])
 
-    return features
+    return features, layer_names
