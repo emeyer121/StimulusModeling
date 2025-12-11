@@ -1,6 +1,6 @@
 # Stimulus Transformations
 
-A Python library integrating stimulus image transformations including object centering, scaling, texture synthesis, skeletonization, and neural network feature extraction. This library is designed for researchers who need to process and transform stimulus images for experiments or modeling.
+A Python library integrating stimulus image transformations including object centering, scaling, texture synthesis, skeletonization, and neural network feature extraction. This library is designed for researchers who need to process and transform stimulus images for experiments or modeling. Currently only supports grayscale images of objects on uniform backgrounds but can update in the future for more complex images.
 
 ## Installation
 
@@ -107,7 +107,7 @@ skeleton_img = stf.transform_image(img_test, operation='skeleton', area_threshol
 
 ## Neural Network Activations
 
-This function outputs the activations of each layer of a specific pre-trained neural network in response to test image. Currently supports AlexNet, VGG16, and resnet50 but can add more. 
+This function outputs the activations of each layer of a specific pre-trained neural network in response to test image. Currently supports AlexNet, AlexNet_mouse, VGG, and resnet models but can add more. AlexNet_mouse uses a model from Nayebi et al. 2023 which uses contrastive learning and larger convolutional filters.
 
 ```
 activations = stf.transform_image(img_test, operation='NN', network='alexnet', layer_types=['Conv2d', 'Linear'], device='auto')

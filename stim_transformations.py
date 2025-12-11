@@ -535,8 +535,7 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
     backgroundVal = stats.mode(img_test.flatten())[0]
     binary = img_test != backgroundVal
     filled_mask = remove_small_holes(binary, area_threshold=area_threshold)
-
-    closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_OPEN, kernel=np.ones((3,3),np.uint8))
+    closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_CLOSE, kernel=np.ones((3,3),np.uint8))
 
     # Skeletonize the binary image
     skeleton = skeletonize(closed_img)
@@ -572,7 +571,7 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
     """
 
     if layer_types is None:
-        layer_types = ['Conv2d', 'BatchNorm2d','ReLU','MaxPool2d','Dropout','BatchNorm1d','Linear']
+        layer_types = ['Conv2d', 'Linear']
 
     activations = {}
 
@@ -599,19 +598,14 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
     # Load the specified network
     if network == 'alexnet':
         net = models.alexnet(pretrained=True)
-        net.eval()
     elif network == 'vgg16':
         net = models.vgg16(pretrained=True)
-        net.eval()
     elif network == 'resnet50':
         net = models.resnet50(pretrained=True)
-        net.eval()
     elif network == 'vgg11':
         net = models.vgg11(pretrained=True)
-        net.eval()
     elif network == 'resnet18':
         net = models.resnet18(pretrained=True)
-        net.eval()
     elif network == 'alexnet_mouse':
         name = "alexnet_bn_ir_64x64_input_pool_6"
         # load_pretrained_model returns (model, layers) to match the project's
@@ -652,4 +646,4 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net(DNN_input)  # Forward pass to trigger hooks
         features.append(activations[layer_name])
 
-    return features, layer_names
+    return features
