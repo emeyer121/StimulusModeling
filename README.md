@@ -1,6 +1,6 @@
 # Stimulus Transformations
 
-A comprehensive Python library for stimulus image transformations including centering, scaling, texture synthesis, skeletonization, and neural network feature extraction. This library is designed for researchers in psychology, neuroscience, and computer vision who need to process and transform stimulus images for experiments or modeling.
+A Python library integrating stimulus image transformations including object centering, scaling, texture synthesis, skeletonization, and neural network feature extraction. This library is designed for researchers who need to process and transform stimulus images for experiments or modeling.
 
 ## Installation
 
@@ -51,7 +51,7 @@ The package requires:
 
 All dependencies will be automatically installed when you install the package.
 
-## Quick Start
+## Import necessary python packages and stim_transformations to use
 
 ```python
 import stim_transformations as stf
@@ -63,7 +63,7 @@ import matplotlib.pyplot as plt
 This code currently works by inputting a reference object and test object which will be centered based on the center of mass of the reference. If there is no reference provided, will center object to the middle of the image .
 
 ```
-centered_img = stim_transformations.transform_image(img_test, operation = 'center', img_ref = img_ref)
+centered_img = stf.transform_image(img_test, operation = 'center', img_ref = img_ref)
 ```
 <img src="images/centered_camel.png" width="650" height="256">
 <img src="images/centered_wrench.png" width="650" height="256">
@@ -72,7 +72,7 @@ centered_img = stim_transformations.transform_image(img_test, operation = 'cente
 This code currently works by inputting a reference object and test object. The test object will be scaled to match its largest dimension (height or width) to the size of the largest dimension of the reference. If scaling the test image causes it to exceed the bounds of the image, it will move the object to keep it inside the image. Next step will be just scaling the object to fill one dimension of the image if there is no reference provided.
 
 ```
-scaled_img = stim_transformations.transform_image(img_test, operation = 'scale', img_ref = img_ref)
+scaled_img = stf.transform_image(img_test, operation = 'scale', img_ref = img_ref)
 ```
 <img src="images/scaled_camel.png" width="650" height="256">
 <img src="images/scaled_wrench.png" width="650" height="256">
@@ -97,7 +97,7 @@ cropped_img, texture_img = stf.transform_image(img_test, operation = 'texture_cr
 
 ## Object Skeletonization
 
-This function outputs a skeleton of the input object using the [scikit-image skeletonize](https://scikit-image.org/docs/0.25.x/auto_examples/edges/plot_skeleton.html) method. It also only requires a single image as input. This function also adds a Gaussian blur after skeletonization, although I may add functionality to turn this on or off in the future.
+This function outputs a skeleton of the input object using the [scikit-image skeletonize](https://scikit-image.org/docs/0.25.x/auto_examples/edges/plot_skeleton.html) method. It also only requires a single image as input. This function also adds a Gaussian blur after skeletonization, although I may add functionality to turn this on or off in the future. Am messing around with how best to deal with any holes in the object due to background thresholding so it is functional but not optimized quite yet.
 
 ```
 skeleton_img = stf.transform_image(img_test, operation='skeleton', area_threshold=3, blur_kernel=(5, 5), invert=True)
@@ -112,3 +112,4 @@ This function outputs the activations of each layer of a specific pre-trained ne
 ```
 activations = stf.transform_image(img_test, operation='NN', network='alexnet', layer_types=['Conv2d', 'Linear'], device='auto')
 ```
+<img src="images/feature_act.png" width="550" height="256">
