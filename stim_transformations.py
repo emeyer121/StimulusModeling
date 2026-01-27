@@ -180,6 +180,7 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
 
 def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
+    # Determine background value by taking mode of pixel values and binarize
     backgroundVal = stats.mode(img_ref.flatten())[0]
     binary = img_ref != backgroundVal
     binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
@@ -214,16 +215,12 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
     binary_scaled = binary_scaled.astype(np.uint8) * 255
     x, y, w, h = cv2.boundingRect(binary_scaled)
 
-    # Compute crop bounds to center-crop the scaled image to the reference size
-    crop_x1 = max(0, (w_test_scaled - w_ref) // 2)
-    crop_y1 = max(0, (h_test_scaled - h_ref) // 2)
-
     # Find the x and y limits of the object in the scaled image
     obj_indices = np.argwhere(binary_scaled)
     y_obj_min, x_obj_min = obj_indices.min(axis=0)
     y_obj_max, x_obj_max = obj_indices.max(axis=0)
 
-    # Compute crop bounds to center-crop the scaled image to the reference size
+    # Compute crop bounds based on original and scaled image sizes for center cropping
     crop_x1 = max(0, (w_test_scaled - w_ref) // 2)
     crop_y1 = max(0, (h_test_scaled - h_ref) // 2)
     crop_x2 = crop_x1 + w_ref
@@ -249,6 +246,7 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
         shift = min(excess_bottom, h_test_scaled - crop_y2)
         crop_y1 += shift
         crop_y2 += shift
+    
     # If the object's top edge is above the crop box, shift up
     excess_top = crop_y1 - y_obj_min
     if excess_top > 0:
@@ -323,6 +321,7 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
     target_h = ((h + 3) // 4) * 4  # Round up to nearest multiple of 4
     target_w = ((w + 3) // 4) * 4  # Round up to nearest multiple of 4
 
+    # Ensure minimum size of 64x64
     target_h = max(target_h, 64)
     target_w = max(target_w, 64)
 
