@@ -77,6 +77,15 @@ scaled_img = stf.transform_image(img_test, operation = 'scale', img_ref = img_re
 <img src="images/scaled_camel.png" width="650" height="256">
 <img src="images/scaled_wrench.png" width="650" height="256">
 
+## Object Rotating
+This code currently works by inputting a reference object and test object. The test object will be rotated in the image plane to match the orientation of the long axis of the reference. Afterwards, the object centering function is used to match the center of mass of the rotated test object to its original center of mass to maintain position information. Could adjust this to just rotate the object to an input angle if no reference provided.
+
+```
+rotated_img = stf.transform_image(img_test, operation = 'rotate', img_ref = img_ref)
+```
+<img src="images/rotated_camel.png" width="650" height="256">
+<img src="images/rotated_wrench.png" width="650" height="256">
+
 ## Object Texture Metamer In-Place
 This function works by using the Freeman & Simoncelli texture synthesis model using [plenoptic](https://github.com/plenoptic-org/plenoptic/tree/main). This usage crops out the object from its background with a bounding box, synthesizes a metamer from the cropped image, then places it in a background of the same image size where the background is the average pixel value from the metamer. This keep the texture more contained rather than spreading it across the empty background and maintains position and shape information.
 
