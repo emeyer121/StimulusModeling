@@ -25,6 +25,7 @@ from skimage.morphology import skeletonize, remove_small_holes
 from torchvision import models
 from mouse_vision.core.model_loader_utils import load_model
 from mouse_vision.models.model_paths import MODEL_PATHS
+from skimage.measure import label, regionprops
 
 def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]:
     """
@@ -42,6 +43,7 @@ def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.
         Type of operation to perform. Must be one of:
         - 'center': Center image to reference or image center
         - 'scale': Scale image to match reference dimensions
+        - 'rotate': Rotate image plane to match reference long axis orientation
         - 'texture_inplace': Generate texture metamer in place
         - 'texture_crop': Generate texture metamer with cropping
         - 'skeleton': Extract object skeleton
@@ -53,7 +55,7 @@ def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.
     -------
     Union[np.ndarray, Tuple[np.ndarray, ...], List[np.ndarray]]
         The result depends on the operation:
-        - 'center', 'scale', 'texture_inplace': Single numpy array
+        - 'center', 'scale', 'rotate', 'texture_inplace': Single numpy array
         - 'texture_crop': Tuple of (cropped_image, texture_image)
         - 'skeleton': Tuple of (binary_mask, skeleton_image)
         - 'NN': List of feature arrays
@@ -67,6 +69,10 @@ def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.
     scale:
         img_ref : np.ndarray, required
             Reference image that test image is scaled to match.
+
+    rotate:
+        img_ref : np.ndarray, required
+            Reference image that test image is rotated to match.
             
     texture_inplace:
         n_scales : int, default=2
@@ -119,6 +125,12 @@ def transform_image(img_test: np.ndarray, operation: str, **kwargs) -> Union[np.
             raise ValueError("img_ref is required for 'scale' operation")
         return scale_image(img_test, img_ref)
     
+    elif operation == 'rotate':
+        img_ref = kwargs.get('img_ref')
+        if img_ref is None:
+            raise ValueError("img_ref is required for 'scale' operation")
+        return rotate_image(img_test, img_ref)
+    
     elif operation == 'texture_inplace':
         return texture_inplace(img_test, **kwargs)
     
@@ -155,8 +167,9 @@ def center_image(img_test: np.ndarray, img_ref: Optional[np.ndarray] = None) -> 
         h, w = img_test.shape
         cX_new, cY_new = w // 2, h // 2  # Center of the image
     else:
-        backgroundVal = stats.mode(img_ref.flatten())[0]
-        _, binary = cv2.threshold(img_ref, backgroundVal, 255, cv2.THRESH_BINARY)
+        backgroundRef = stats.mode(img_ref.flatten())[0]
+        binary = img_ref != backgroundRef
+        binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
 
         # Calculate moments
         M = cv2.moments(binary)
@@ -276,6 +289,57 @@ def scale_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
         )
 
     return img_test_scaled
+
+def rotate_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
+
+    # Determine background value by taking mode of pixel values and binarize
+    backgroundVal = stats.mode(img_ref.flatten())[0]
+    binary = img_ref != backgroundVal
+    binary = binary.astype(np.uint8) * 255
+
+    labeled_image = label(binary)
+    props = regionprops(labeled_image)
+
+    if not props:
+        print("No objects found in the image.")
+        return None, None
+    
+    # Assuming the largest object is the one of interest
+    largest_object = max(props, key=lambda p: p.area)
+    
+    # The 'orientation' property gives the angle in radians
+    orient_ref = largest_object.orientation
+    # print(f"Orientation (radians): {orient_ref}")
+
+    # Determine background value by taking mode of pixel values and binarize
+    backgroundVal = stats.mode(img_test.flatten())[0]
+    binary = img_test != backgroundVal
+    binary = binary.astype(np.uint8) * 255
+    height, width = img_test.shape[:2]
+
+    labeled_image = label(binary)
+    props = regionprops(labeled_image)
+
+    if not props:
+        print("No objects found in the image.")
+        return None, None
+    
+    # Assuming the largest object is the one of interest
+    largest_object = max(props, key=lambda p: p.area)
+    
+    # The 'orientation' property gives the angle in radians
+    orient_test = largest_object.orientation
+    # print(f"Orientation (radians): {orient_test}")
+
+    # Get transformation matrix for rotation
+    rot_angle_deg = (orient_ref - orient_test)*180/np.pi  # Convert radians to degrees
+    print(orient_ref, orient_test, rot_angle_deg)
+    rot_mat = cv2.getRotationMatrix2D((width // 2, height // 2), rot_angle_deg, 1.0)
+    img_test_rotated = cv2.warpAffine(img_test, rot_mat, (width, height),borderMode=cv2.BORDER_CONSTANT, borderValue=int(backgroundVal))
+
+    img_rotated_placed = center_image(img_test_rotated, img_test)
+
+    return img_rotated_placed
 
 def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 1500, device: str = 'auto') -> np.ndarray:
 
@@ -435,18 +499,18 @@ def texture_crop(img_test: np.ndarray, n_scales: int = 2, target_size: int = 256
 
     _, binary2 = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # 2. Edge detection to catch faint edges
+    # Edge detection to catch faint edges
     edges = cv2.Canny(img_blur, 30, 100)
 
-    # 3. Combine all approaches
+    # Combine all approaches
     binary = cv2.bitwise_or(binary1, binary2)
     binary = cv2.bitwise_or(binary, edges)
 
-    # 4. Morphological operations to connect components
+    # Morphological operations to connect components
     kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large)
 
-    # 5. Fill holes
+    # Fill holes
     kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     binary = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel_small)
     binary = cv2.morphologyEx(binary, cv2.MORPH_ERODE, kernel_small)
