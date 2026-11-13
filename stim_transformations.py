@@ -373,11 +373,40 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
     else:
         print("Running on CPU!")
 
-    # Compute bounding box of the foreground in the reference image and crop it
-    backgroundVal = stats.mode(img_test.flatten())[0]
-    binary = img_test != backgroundVal
-    binary = binary.astype(np.uint8) * 255  # Convert boolean to uint8 for display
-    x, y, w, h = cv2.boundingRect(binary)
+    # Compute bounding box of the foreground (same binarization as texture_crop)
+    # Preprocessing - reduce noise
+    img_blur = cv2.GaussianBlur(img_test, (5, 5), 0)
+
+    # Adaptive thresholding - good for non-uniform backgrounds
+    binary1 = cv2.adaptiveThreshold(
+        img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV, 21, 4  # Larger block size, higher C
+    )
+
+    _, binary2 = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Edge detection to catch faint edges
+    edges = cv2.Canny(img_blur, 30, 100)
+
+    # Combine all approaches
+    binary = cv2.bitwise_or(binary1, binary2)
+    binary = cv2.bitwise_or(binary, edges)
+
+    # Morphological operations to connect components
+    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large)
+
+    # Fill holes
+    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel_small)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_ERODE, kernel_small)
+
+    # Keep only significant contours and take the box enclosing all of them
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    min_area = 50  # adjust based on your image size
+    valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
+    all_points = np.vstack([contour.reshape(-1, 2) for contour in valid_contours])
+    x, y, w, h = cv2.boundingRect(all_points)
     img_height, img_width = img_test.shape[:2]
 
     # print(h,w)
@@ -389,38 +418,25 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
     target_h = max(target_h, 64)
     target_w = max(target_w, 64)
 
-    # Simple bounds checking - if target size exceeds image, adjust position
-    if x + target_w > img_width:
-        x = max(0, img_width - target_w)
-    if y + target_h > img_height:
-        y = max(0, img_height - target_h)
-    
-    # If image is still too small, crop what we can and pad the rest
-    actual_h = min(target_h, img_height - y)
-    actual_w = min(target_w, img_width - x)
-    
-    print(f"Final crop: x={x}, y={y}, size={actual_h}x{actual_w}, target={target_h}x{target_w}")
+    # Never extend beyond the image: if the target is larger than the image,
+    # shrink it to the largest multiple of 4 that fits
+    target_h = min(target_h, (img_height // 4) * 4)
+    target_w = min(target_w, (img_width // 4) * 4)
+
+    # Center the crop window on the object's bounding box
+    cy = y + h // 2
+    cx = x + w // 2
+    y = cy - target_h // 2
+    x = cx - target_w // 2
+
+    # Shift the window back inside the image if it runs past an edge
+    y = int(np.clip(y, 0, img_height - target_h))
+    x = int(np.clip(x, 0, img_width - target_w))
+
+    print(f"Final crop: x={x}, y={y}, size={target_h}x{target_w}")
 
     # Crop the reference image
-    img_crop = img_test[y:y+actual_h, x:x+actual_w]
-
-    # Pad if necessary to reach target dimensions
-    pad_h = target_h - actual_h
-    pad_w = target_w - actual_w
-    
-    if pad_h > 0 or pad_w > 0:
-        pad_top = pad_h // 2
-        pad_bottom = pad_h - pad_top
-        pad_left = pad_w // 2
-        pad_right = pad_w - pad_left
-        
-        img_crop = np.pad(
-            img_crop,
-            ((pad_top, pad_bottom), (pad_left, pad_right)),
-            mode='constant',
-            constant_values=int(backgroundVal)
-        )
-        print(f"Added padding: top={pad_top}, bottom={pad_bottom}, left={pad_left}, right={pad_right}")
+    img_crop = img_test[y:y+target_h, x:x+target_w]
 
     # Convert to tensor and normalize
     img_crop = np.expand_dims(img_crop, axis=0)  # Add batch dimension
@@ -433,11 +449,11 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
     print(f"Image shape after processing: {img_crop.shape}")
 
     # Create Portilla-Simoncelli model with 2 scales
-    ps = po.simul.PortillaSimoncelli(img_crop.shape[-2:], n_scales=n_scales)
+    ps = po.models.PortillaSimoncelli(img_crop.shape[-2:], n_scales=n_scales)
     ps.to(DEVICE)
 
     im_init = torch.rand_like(img_crop) * 0.2 + img_crop.mean()
-    met = po.synth.MetamerCTF(img_crop, ps, loss_function=po.tools.optim.l2_norm)
+    met = po.MetamerCTF(img_crop, ps, loss_function=po.loss.l2_norm)
     met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
@@ -559,11 +575,11 @@ def texture_crop(img_test: np.ndarray, n_scales: int = 2, target_size: int = 256
     img_prep = img_prep.to(DEVICE)
 
     # print(f"Image shape after cropping: {img_crop.shape}")
-    ps = po.simul.PortillaSimoncelli(img_prep.shape[-2:],n_scales=n_scales)
+    ps = po.models.PortillaSimoncelli(img_prep.shape[-2:],n_scales=n_scales)
     ps.to(DEVICE)
 
     im_init = torch.rand_like(img_prep) * 0.2 + img_prep.mean()
-    met = po.synth.MetamerCTF(img_prep, ps, loss_function=po.tools.optim.l2_norm, coarse_to_fine='together')
+    met = po.MetamerCTF(img_prep, ps, loss_function=po.loss.l2_norm, coarse_to_fine='together')
     met.setup(im_init)
     met.synthesize(max_iter=max_iter, store_progress = 10,
                change_scale_criterion=None,
@@ -677,6 +693,8 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net, _ = load_pretrained_model(name)
     else:
         raise ValueError(f"Unsupported network: {network}")
+    
+    net.eval()
 
     # Move the network to the selected device so its weights and buffers
     # have the same device type as the input tensor we will send through it.
@@ -709,4 +727,4 @@ def NN_activation(img_test: np.ndarray, network: str = 'alexnet', layer_types: O
         net(DNN_input)  # Forward pass to trigger hooks
         features.append(activations[layer_name])
 
-    return features
+    return features, layer_names
