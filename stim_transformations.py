@@ -333,7 +333,7 @@ def rotate_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     # Get transformation matrix for rotation
     rot_angle_deg = (orient_ref - orient_test)*180/np.pi  # Convert radians to degrees
-    print(orient_ref, orient_test, rot_angle_deg)
+    # print(orient_ref, orient_test, rot_angle_deg)
     rot_mat = cv2.getRotationMatrix2D((width // 2, height // 2), rot_angle_deg, 1.0)
     img_test_rotated = cv2.warpAffine(img_test, rot_mat, (width, height),borderMode=cv2.BORDER_CONSTANT, borderValue=int(backgroundVal))
 
