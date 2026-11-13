@@ -341,6 +341,67 @@ def rotate_image(img_test: np.ndarray, img_ref: np.ndarray) -> np.ndarray:
 
     return img_rotated_placed
 
+def binarize_object(img_test: np.ndarray, min_area: int = 50) -> Tuple[np.ndarray, int, int, int, int]:
+
+    """
+    Segment the object from the background without relying on a single
+    background value (robust to the noisy backgrounds of isetbio images).
+
+    Parameters:
+    -----------
+    img_test : numpy array
+        Grayscale image
+    min_area : int, default=50
+        Regions with smaller contour area are treated as noise and dropped
+
+    Returns:
+    --------
+    mask : uint8 array (0/255) with the significant regions filled solid
+    x, y, w, h : bounding box enclosing all significant regions
+    """
+
+    # Preprocessing - reduce noise
+    img_blur = cv2.GaussianBlur(img_test, (5, 5), 0)
+
+    # Adaptive thresholding - good for non-uniform backgrounds
+    binary1 = cv2.adaptiveThreshold(
+        img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV, 21, 4  # Larger block size, higher C
+    )
+
+    _, binary2 = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Edge detection to catch faint edges
+    edges = cv2.Canny(img_blur, 30, 100)
+
+    # Combine all approaches
+    binary = cv2.bitwise_or(binary1, binary2)
+    binary = cv2.bitwise_or(binary, edges)
+
+    # Morphological operations to connect components
+    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large)
+
+    # Fill holes
+    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel_small)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_ERODE, kernel_small)
+
+    # Keep only significant regions and fill them solid
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
+    if not valid_contours:
+        raise ValueError(f"No object region larger than {min_area} px found")
+
+    mask = np.zeros_like(binary)
+    cv2.drawContours(mask, valid_contours, -1, 255, thickness=cv2.FILLED)
+
+    # Bounding box enclosing all significant regions
+    all_points = np.vstack([contour.reshape(-1, 2) for contour in valid_contours])
+    x, y, w, h = cv2.boundingRect(all_points)
+
+    return mask, x, y, w, h
+
 def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 1500, device: str = 'auto') -> np.ndarray:
 
     """
@@ -373,40 +434,8 @@ def texture_inplace(img_test: np.ndarray, n_scales: int = 2, max_iter: int = 150
     else:
         print("Running on CPU!")
 
-    # Compute bounding box of the foreground (same binarization as texture_crop)
-    # Preprocessing - reduce noise
-    img_blur = cv2.GaussianBlur(img_test, (5, 5), 0)
-
-    # Adaptive thresholding - good for non-uniform backgrounds
-    binary1 = cv2.adaptiveThreshold(
-        img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 21, 4  # Larger block size, higher C
-    )
-
-    _, binary2 = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    # Edge detection to catch faint edges
-    edges = cv2.Canny(img_blur, 30, 100)
-
-    # Combine all approaches
-    binary = cv2.bitwise_or(binary1, binary2)
-    binary = cv2.bitwise_or(binary, edges)
-
-    # Morphological operations to connect components
-    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large)
-
-    # Fill holes
-    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    binary = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel_small)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_ERODE, kernel_small)
-
-    # Keep only significant contours and take the box enclosing all of them
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    min_area = 50  # adjust based on your image size
-    valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
-    all_points = np.vstack([contour.reshape(-1, 2) for contour in valid_contours])
-    x, y, w, h = cv2.boundingRect(all_points)
+    # Compute bounding box of the foreground and crop it
+    _, x, y, w, h = binarize_object(img_test)
     img_height, img_width = img_test.shape[:2]
 
     # print(h,w)
@@ -504,45 +533,8 @@ def texture_crop(img_test: np.ndarray, n_scales: int = 2, target_size: int = 256
     else:
         print("Running on CPU!")
 
-    # Preprocessing - reduce noise
-    img_blur = cv2.GaussianBlur(img_test, (5, 5), 0)
-
-    # Adaptive thresholding - good for non-uniform backgrounds
-    binary1 = cv2.adaptiveThreshold(
-        img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-        cv2.THRESH_BINARY_INV, 21, 4  # Larger block size, higher C
-    )
-
-    _, binary2 = cv2.threshold(img_blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    # Edge detection to catch faint edges
-    edges = cv2.Canny(img_blur, 30, 100)
-
-    # Combine all approaches
-    binary = cv2.bitwise_or(binary1, binary2)
-    binary = cv2.bitwise_or(binary, edges)
-
-    # Morphological operations to connect components
-    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large)
-
-    # Fill holes
-    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    binary = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel_small)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_ERODE, kernel_small)
-
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    min_area = 50  # adjust based on your image size
-    valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
-
-    if len(valid_contours) > 1:
-        # Find bounding box that encompasses all significant contours
-        all_points = np.vstack([contour.reshape(-1, 2) for contour in valid_contours])
-        x, y, w, h = cv2.boundingRect(all_points)
-    else:
-        # Single contour
-        largest_contour = max(valid_contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
+    # Compute bounding box of the foreground
+    _, x, y, w, h = binarize_object(img_test)
 
     # Find whether width or height is larger then adjust the other dimension to make it square then resize to 256x256
     if w > h:
@@ -610,10 +602,9 @@ def skeletonize_object(img_test: np.ndarray, area_threshold: int = 3, blur_kerne
     if len(img_test.shape) == 3:
         img_test = cv2.cvtColor(img_test, cv2.COLOR_BGR2GRAY)
 
-    # Threshold the image to create a binary image and fill small holes
-    backgroundVal = stats.mode(img_test.flatten())[0]
-    binary = img_test != backgroundVal
-    filled_mask = remove_small_holes(binary, area_threshold=area_threshold)
+    # Binarize the object and fill small holes
+    binary, _, _, _, _ = binarize_object(img_test)
+    filled_mask = remove_small_holes(binary > 0, area_threshold=area_threshold)
     closed_img = cv2.morphologyEx(filled_mask.astype('uint8'), cv2.MORPH_CLOSE, kernel=np.ones((3,3),np.uint8))
 
     # Skeletonize the binary image
